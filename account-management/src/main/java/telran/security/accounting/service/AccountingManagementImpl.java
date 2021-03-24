@@ -7,6 +7,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import lombok.extern.log4j.Log4j2;
+import telran.security.accounting.MapReactiveUserDetailsServiceCustom;
 import telran.security.accounting.dto.AccountRequest;
 import telran.security.accounting.dto.AccountResponse;
 import telran.security.accounting.mongo.documents.AccountDoc;
@@ -21,6 +22,9 @@ public class AccountingManagementImpl implements AccountingManagement {
 
 	@Autowired
 	PasswordEncoder passwordEncoder;
+	
+	@Autowired
+	MapReactiveUserDetailsServiceCustom detailsService;
 
 	private AccountResponse accountResponsefromAccountDoc(AccountDoc accountDoc) {
 		return new AccountResponse(accountDoc.getUserName(), accountDoc.getPassword(), accountDoc.getRoles(),
