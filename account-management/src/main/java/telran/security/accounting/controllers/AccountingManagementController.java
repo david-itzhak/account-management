@@ -1,5 +1,7 @@
 package telran.security.accounting.controllers;
 
+import java.util.List;
+
 import javax.validation.Valid;
 import javax.validation.constraints.NotEmpty;
 
@@ -11,6 +13,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import lombok.extern.log4j.Log4j2;
@@ -32,6 +35,11 @@ public class AccountingManagementController {
 	@GetMapping(value = ApiConstants.URL_GET)
 	AccountResponse getAccount(@PathVariable(ApiConstants.ID) @NotEmpty String userName) {
 		return accountingManagement.getAccount(userName);
+	}
+	
+	@GetMapping(value = ApiConstants.URL_GET_ACTIVATED)
+	List<AccountResponse> getActivatedAccounts() {
+		return accountingManagement.getActivatedAccounts();
 	}
 	
 	@PostMapping(value = ApiConstants.URL_POST)
@@ -57,8 +65,8 @@ public class AccountingManagementController {
 		return accountingManagement.removeRole(roleRequest.getUserName(), roleRequest.getRole());
 	}
 	
-	@DeleteMapping(value = ApiConstants.URL_GET)
-	String removingAccount(@RequestBody @NotEmpty String userName) {
+	@DeleteMapping(value = ApiConstants.URL_POST)
+	String removingAccount(@RequestParam(name = ApiConstants.USERNAME_PARAM) @NotEmpty String userName) {
 		accountingManagement.deleteAccount(userName);
 		return userName + " was deleted";
 	}

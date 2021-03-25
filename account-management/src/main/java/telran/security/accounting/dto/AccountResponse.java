@@ -3,7 +3,6 @@ package telran.security.accounting.dto;
 import java.util.Arrays;
 
 import lombok.AllArgsConstructor;
-import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
@@ -13,6 +12,10 @@ import lombok.ToString;
 @Getter
 @Setter
 public class AccountResponse {
+
+	String userName;
+	String password;
+	String[] roles;
 
 	@Override
 	public int hashCode() {
@@ -51,11 +54,6 @@ public class AccountResponse {
 		return true;
 	}
 
-	String userName;
-	
-	String password;
-	
-	String[] roles;
 	
 //	Expiration timestamp in the seconds (number seconds from 1970-01-01)
 	long expirationTimestamp;

@@ -1,5 +1,7 @@
 package telran.security.accounting.service;
 
+import java.util.List;
+
 import telran.security.accounting.dto.AccountRequest;
 import telran.security.accounting.dto.AccountResponse;
 
@@ -10,4 +12,5 @@ public interface AccountingManagement {
 	AccountResponse updatePassword(String username, String password);
 	AccountResponse addRole(String username, String role);
 	AccountResponse removeRole(String username, String role);
+	List<AccountResponse> getActivatedAccounts();
 }

@@ -13,7 +13,6 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.core.authority.AuthorityUtils;
-import org.springframework.security.core.userdetails.MapReactiveUserDetailsService;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
@@ -22,8 +21,10 @@ import org.springframework.security.web.server.SecurityWebFilterChain;
 
 import lombok.extern.log4j.Log4j2;
 import telran.security.accounting.api.ApiConstants;
+import telran.security.accounting.dto.AccountResponse;
 import telran.security.accounting.mongo.documents.AccountDoc;
 import telran.security.accounting.mongo.repo.AccountRepository;
+import telran.security.accounting.service.AccountingManagementImpl;
 
 @Configuration
 @Log4j2
@@ -32,6 +33,9 @@ public class SecurityConfiguration {
 
 	@Value("${security.enable}")
 	boolean securityEnable;
+	
+	@Value("${test.mod}")
+	boolean testMod;
 
 	@Autowired
 	AccountRepository repository;
@@ -43,7 +47,8 @@ public class SecurityConfiguration {
 	}
 
 	private String[] rolesMapper(String[] roles) {
-		log.debug(">>>> SecurityConfiguration: mappin roles to format for creating User object: {}", Arrays.deepToString(roles));
+		log.debug(">>>> SecurityConfiguration: mappin roles to format for creating User object: {}",
+				Arrays.deepToString(roles));
 		String[] rolesNew = Arrays.stream(roles).map(role -> String.format("ROLE_%s", role).toUpperCase())
 				.toArray(String[]::new);
 		log.debug(">>>> SecurityConfiguration: roles in format for User object: {}", Arrays.deepToString(rolesNew));
@@ -51,31 +56,57 @@ public class SecurityConfiguration {
 	}
 
 //	@Bean
-	MapReactiveUserDetailsService getMapDetailse() {
-		if (!securityEnable) {
+//	MapReactiveUserDetailsService getMapDetailse() {
+//		if (!securityEnable) {
+//			log.debug(">>>> SecurityConfiguration: getMapDetailse: start in test mod");
+//			UserDetails user = new User("user", "{noop}user", AuthorityUtils.createAuthorityList("ROLE_USER"));
+//			UserDetails admin = new User("admin", "{noop}admin", AuthorityUtils.createAuthorityList("ROLE_ADMIN"));
+//			UserDetails users[] = { user, admin };
+//			return new MapReactiveUserDetailsService(users);
+//		}
+//		List<AccountDoc> list = repository.findAll();
+//		log.debug(">>>> SecurityConfiguration > getMapDetailse: get list of AccountDoc from repo: {}", list);
+//		List<UserDetails> listUserDetails = list.stream()
+//				.filter(account -> account.getExpirationTimestamp() > Instant.now().getEpochSecond()).map(account -> {
+//					return new User(account.getUserName(), String.format("{noop}%s", account.getPassword()),
+//							AuthorityUtils.createAuthorityList(rolesMapper(account.getRoles())));
+//				}).collect(Collectors.toList()); // TODO negative test for a case, when expiration timestamp of the
+//													// password expired
+//		return new MapReactiveUserDetailsService(listUserDetails);
+//	}
+	@Bean
+	MapReactiveUserDetailsServiceCustom getMapDetailse() {
+		if (testMod) {
 			log.debug(">>>> SecurityConfiguration: getMapDetailse: start in test mod");
-			UserDetails user = new User("user", "{noop}user",
-					AuthorityUtils.createAuthorityList("ROLE_USER")) ;
-			UserDetails admin = new User("admin", "{noop}admin",
-					AuthorityUtils.createAuthorityList("ROLE_ADMIN")) ;
-			UserDetails users[] = {user, admin};
-			return new MapReactiveUserDetailsService(users);
+			UserDetails user = new User("user0", "00000000", AuthorityUtils.createAuthorityList("ROLE_USER"));
+			UserDetails admin = new User("admin1", "11111111", AuthorityUtils.createAuthorityList("ROLE_ADMIN"));
+			UserDetails users[] = { user, admin };
+			return new MapReactiveUserDetailsServiceCustom(users);
 		}
-		List<AccountDoc> list = repository.findAll();
+		log.debug(">>>> SecurityConfiguration: getMapDetailse: start in default mod");
+		log.debug(">>>> SecurityConfiguration > getMapDetailse: start creation of @Bean getMapDetailse");
+		List<AccountDoc> list = repository.findByExpirationTimestampGreaterThan(Instant.now().getEpochSecond());
 		log.debug(">>>> SecurityConfiguration > getMapDetailse: get list of AccountDoc from repo: {}", list);
-		List<UserDetails> listUserDetails = list.stream().filter(account -> account.getExpirationTimestamp() > Instant.now().getEpochSecond()).map(account -> {
-			return new User(account.getUserName(), String.format("{noop}%s", account.getPassword()),
-					AuthorityUtils.createAuthorityList(rolesMapper(account.getRoles())));
-		}).collect(Collectors.toList()); // TODO negative test for a case, when expiration timestamp of the password expired
-		return new MapReactiveUserDetailsService(listUserDetails);
+		List<UserDetails> listUserDetails = list.stream()
+				.map(account -> new User(account.getUserName(), account.getPassword(),
+							AuthorityUtils.createAuthorityList(rolesMapper(account.getRoles()))))
+				.collect(Collectors.toList());
+		log.debug(">>>> SecurityConfiguration > getMapDetailse: get list of UserDetails from repo: {}", listUserDetails);
+//		List<AccountResponse> list = accountingManagement.getActivatedAccounts();
+//		log.debug(">>>> SecurityConfiguration > getMapDetailse: get list of AccountDoc from repo: {}", list);
+//		List<UserDetails> listUserDetails = list.stream()
+//				.map(account -> new User(account.getUserName(), account.getPassword(),
+//						AuthorityUtils.createAuthorityList(rolesMapper(account.getRoles()))))
+//				.collect(Collectors.toList()); // TODO negative test for a case, when expiration timestamp of the password is expired
+		return new MapReactiveUserDetailsServiceCustom(listUserDetails);
 	}
 
 	@Bean
 	SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity httpSecurity) {
 		log.debug(">>>> SecurityConfiguration: flag securityEnable is: {}", securityEnable);
 		if (!securityEnable) {
-			SecurityWebFilterChain filterChain = httpSecurity.csrf().disable().authorizeExchange().anyExchange().permitAll().and()
-					.build();
+			SecurityWebFilterChain filterChain = httpSecurity.csrf().disable().authorizeExchange().anyExchange()
+					.permitAll().and().build();
 			log.debug(">>>> SecurityConfiguration: set security to disable");
 			return filterChain;
 		}

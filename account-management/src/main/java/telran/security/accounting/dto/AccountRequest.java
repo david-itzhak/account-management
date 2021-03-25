@@ -5,6 +5,8 @@ import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Pattern;
 
+import org.springframework.validation.annotation.Validated;
+
 import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -16,6 +18,7 @@ import lombok.ToString;
 @EqualsAndHashCode
 @Getter
 @Setter
+@Validated
 public class AccountRequest {
 
 //	Username (not empty string)
@@ -31,6 +34,6 @@ public class AccountRequest {
 	String[] roles;
 	
 //	Expired period in days (positive number)
-	@Min(0)
+	@Min(1)
 	long expiredPeriod;
 }
