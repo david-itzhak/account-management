@@ -11,8 +11,10 @@ import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.util.Assert;
 
+import lombok.extern.log4j.Log4j2;
 import reactor.core.publisher.Mono;
 
+@Log4j2
 public class MapReactiveUserDetailsServiceCustom
 		implements ReactiveUserDetailsService, ReactiveUserDetailsPasswordService {
 	private Map<String, UserDetails> users;
@@ -29,6 +31,7 @@ public class MapReactiveUserDetailsServiceCustom
 		for (UserDetails user : users) {
 			this.users.put(getKey(user.getUsername()), user);
 		}
+		log.debug(">>>> MapReactiveUserDetailsServiceCustom > constractor: {}", users.toString());
 	}
 	@Override
 	public Mono<UserDetails> findByUsername(String username) {
@@ -45,20 +48,23 @@ public class MapReactiveUserDetailsServiceCustom
 					this.users.put(key, userDetails);
 				});
 	}
-	public Mono<UserDetails> addUser(UserDetails user) {
-		return Mono.just(user)
-				.doOnNext((userDetails) -> {
-					String key = getKey(user.getUsername());
-					this.users.put(key, userDetails);
-				});
+	public void addOrChangeUser(UserDetails user) {
+		log.debug(">>>> MapReactiveUserDetailsServiceCustom > addUser: start adding a new user to map details service");
+		users.put(getKey(user.getUsername()), user);
+		log.debug(">>>> MapReactiveUserDetailsServiceCustom > addUser: map after addUser{}", users.toString());
 	}
-	public Mono<UserDetails> removeUser(UserDetails user) {
-		return Mono.just(user)
-				.doOnNext((userDetails) -> {
-					String key = getKey(user.getUsername());
-					this.users.remove(key, userDetails);
-				});
+	public void removeUser(UserDetails user) {
+		users.remove(getKey(user.getUsername()));
 	}
+	public void removeUser(String user) {
+		users.remove(user);
+	}
+	public void addRole(UserDetails user) {
+		log.debug(">>>> MapReactiveUserDetailsServiceCustom > addUser: start adding a new user to map details service");
+		users.put(getKey(user.getUsername()), user);
+		log.debug(">>>> MapReactiveUserDetailsServiceCustom > addUser: map after addUser{}", users.toString());
+	}
+
 	private UserDetails withNewPassword(UserDetails userDetails, String newPassword) {
 		return User.withUserDetails(userDetails)
 				.password(newPassword)

@@ -22,13 +22,7 @@ public class AccountingManagementAppl {
 	static BeanDefinitionRegistry registry;
 	
 	public static void main(String[] args) {
-		ConfigurableApplicationContext ctx = SpringApplication.run(AccountingManagementAppl.class, args);
-		registry = (BeanDefinitionRegistry) ctx.getAutowireCapableBeanFactory();
-	}
-	
-	public static void removeBean(String beanName) {
-		registry.removeBeanDefinition(beanName);
-		registry.registerBeanDefinition(beanName, null);
+		SpringApplication.run(AccountingManagementAppl.class, args);
 	}
 	
     @PostConstruct

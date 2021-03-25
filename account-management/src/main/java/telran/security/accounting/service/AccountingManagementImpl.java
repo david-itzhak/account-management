@@ -1,8 +1,11 @@
 package telran.security.accounting.service;
 
 import java.time.Instant;
+import java.util.Arrays;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.authority.AuthorityUtils;
+import org.springframework.security.core.userdetails.User;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -33,7 +36,7 @@ public class AccountingManagementImpl implements AccountingManagement {
 
 	private AccountDoc accountDocfromAccountRequest(AccountRequest accountDto) {
 		long activationTimestamp = Instant.now().getEpochSecond();
-		return new AccountDoc(accountDto.getUserName(), accountDto.getPassword(), accountDto.getRoles(),
+		return new AccountDoc(accountDto.getUserName(), encodePassword(accountDto.getPassword()), accountDto.getRoles(),
 				activationTimestamp, activationTimestamp + accountDto.getExpiredPeriod() * 86400);
 	}
 
@@ -42,6 +45,15 @@ public class AccountingManagementImpl implements AccountingManagement {
 		String encodedPassword = passwordEncoder.encode(password);
 		log.debug(">>>> AccountingManagementImpl > encodePassword : {}", encodedPassword);
 		return encodedPassword;
+	}
+	
+	private String[] rolesMapper(String[] roles) {
+		log.debug(">>>> SecurityConfiguration: mappin roles to format for creating User object: {}",
+				Arrays.deepToString(roles));
+		String[] rolesNew = Arrays.stream(roles).map(role -> String.format("ROLE_%s", role).toUpperCase())
+				.toArray(String[]::new);
+		log.debug(">>>> SecurityConfiguration: roles in format for User object: {}", Arrays.deepToString(rolesNew));
+		return rolesNew;
 	}
 
 	@Override
@@ -60,6 +72,8 @@ public class AccountingManagementImpl implements AccountingManagement {
 		log.debug(
 				">>>> AccountingManagementImpl > addAccount : the account for accountDto {} was added. New AccountDoc: {}",
 				accountDto, res);
+		detailsService.addOrChangeUser(new User(res.getUserName(), res.getPassword(),
+				AuthorityUtils.createAuthorityList(rolesMapper(res.getRoles()))));
 		res.setPassword("*".repeat(8));
 		return accountResponsefromAccountDoc(res);
 	}
@@ -72,6 +86,7 @@ public class AccountingManagementImpl implements AccountingManagement {
 			// TODO negative test
 		}
 		repository.deleteById(username);
+		detailsService.removeUser(username);
 	}
 
 	@Override
@@ -93,7 +108,7 @@ public class AccountingManagementImpl implements AccountingManagement {
 			// TODO negative test
 		}
 		log.debug(">>>> AccountingManagementImpl > encodePassword : try to matches new and old passwords");
-		if (passwordEncoder.matches(password, "{noop}" + account.getPassword())) {
+		if (passwordEncoder.matches(password, account.getPassword())) {
 			throw new RuntimeException(
 					String.format("Unposible to update password. The new password can not be same as the old"));
 			// TODO negative test
@@ -106,6 +121,9 @@ public class AccountingManagementImpl implements AccountingManagement {
 					.format("Unposible to execute operations. The account with the username %s not found", username));
 			// TODO negative test
 		}
+		detailsService.updatePassword(new User(res.getUserName(), String.format("{noop}%s", res.getPassword()),
+				AuthorityUtils.createAuthorityList(rolesMapper(res.getRoles()))), res.getPassword());
+		res.setPassword("*".repeat(8));
 		return res;
 	}
 
@@ -117,6 +135,9 @@ public class AccountingManagementImpl implements AccountingManagement {
 					.format("Unposible to execute operations. The account with the username %s not found", username));
 			// TODO negative test
 		}
+		detailsService.addOrChangeUser(new User(res.getUserName(), String.format("{noop}%s", res.getPassword()),
+				AuthorityUtils.createAuthorityList(rolesMapper(res.getRoles()))));
+		res.setPassword("*".repeat(8));
 		return res;
 	}
 
@@ -128,6 +149,9 @@ public class AccountingManagementImpl implements AccountingManagement {
 					.format("Unposible to execute operations. The account with the username %s not found", username));
 			// TODO negative test
 		}
+		detailsService.addOrChangeUser(new User(res.getUserName(), String.format("{noop}%s", res.getPassword()),
+				AuthorityUtils.createAuthorityList(rolesMapper(res.getRoles()))));
+		res.setPassword("*".repeat(8));
 		return res;
 	}
 }

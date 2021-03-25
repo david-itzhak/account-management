@@ -11,5 +11,6 @@ public interface ApiConstants {
 	String ROLE_ADMIN = "ROLE_ADMIN";
 	String USER = "USER";
 	String ADMIN = "ADMIN";
+	String USERNAME_PARAM = "username";
 	
 }

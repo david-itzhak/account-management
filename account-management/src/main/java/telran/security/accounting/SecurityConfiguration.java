@@ -83,7 +83,7 @@ public class SecurityConfiguration {
 		log.debug(">>>> SecurityConfiguration > getMapDetailse: get list of AccountDoc from repo: {}", list);
 		List<UserDetails> listUserDetails = list.stream()
 				.filter(account -> account.getExpirationTimestamp() > Instant.now().getEpochSecond()).map(account -> {
-					return new User(account.getUserName(), String.format("{noop}%s", account.getPassword()),
+					return new User(account.getUserName(), account.getPassword(),
 							AuthorityUtils.createAuthorityList(rolesMapper(account.getRoles())));
 				}).collect(Collectors.toList()); // TODO negative test for a case, when expiration timestamp of the
 		// password expired
@@ -100,9 +100,11 @@ public class SecurityConfiguration {
 			return filterChain;
 		}
 		SecurityWebFilterChain filterChain = httpSecurity.csrf().disable().httpBasic().and().authorizeExchange()
-				.pathMatchers(HttpMethod.GET).hasRole(ApiConstants.USER).pathMatchers(HttpMethod.POST)
-				.hasRole(ApiConstants.ADMIN).pathMatchers(HttpMethod.DELETE).hasRole(ApiConstants.ADMIN)
-				.pathMatchers(HttpMethod.PUT).hasRole(ApiConstants.ADMIN).and().build();
+				.pathMatchers(HttpMethod.GET).hasRole(ApiConstants.USER)
+				.pathMatchers(HttpMethod.POST).hasRole(ApiConstants.ADMIN)
+				.pathMatchers(HttpMethod.DELETE).hasRole(ApiConstants.ADMIN)
+				.pathMatchers(HttpMethod.PUT).hasRole(ApiConstants.ADMIN)
+				.and().build();
 		log.debug(">>>> SecurityConfiguration: set security to enable");
 		return filterChain;
 	}
