@@ -2,8 +2,12 @@ package telran.security.accounting.service;
 
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -30,7 +34,7 @@ public class AccountingManagementImpl implements AccountingManagement {
 	MapReactiveUserDetailsServiceCustom detailsService;
 
 	private AccountResponse accountResponsefromAccountDoc(AccountDoc accountDoc) {
-		return new AccountResponse(accountDoc.getUserName(), accountDoc.getPassword(), accountDoc.getRoles(),
+		return new AccountResponse(accountDoc.getUserName(), "*".repeat(8), accountDoc.getRoles(),
 				accountDoc.getExpirationTimestamp());
 	}
 
@@ -74,7 +78,6 @@ public class AccountingManagementImpl implements AccountingManagement {
 				accountDto, res);
 		detailsService.addOrChangeUser(new User(res.getUserName(), res.getPassword(),
 				AuthorityUtils.createAuthorityList(rolesMapper(res.getRoles()))));
-		res.setPassword("*".repeat(8));
 		return accountResponsefromAccountDoc(res);
 	}
 
@@ -91,12 +94,8 @@ public class AccountingManagementImpl implements AccountingManagement {
 
 	@Override
 	public AccountResponse getAccount(String username) {
-		AccountDoc account = repository.findById(username).orElse(null);
-		if (account == null || account.getExpirationTimestamp() < Instant.now().getEpochSecond()) {
-			return null;
-		}
-		account.setPassword("*".repeat(8));
-		return accountResponsefromAccountDoc(account);
+		Optional<AccountDoc> account = repository.findById(username).filter(a -> a.getExpirationTimestamp() > Instant.now().getEpochSecond());
+		return account.isEmpty() ? null : accountResponsefromAccountDoc(account.get());
 	}
 
 	@Override
@@ -153,5 +152,12 @@ public class AccountingManagementImpl implements AccountingManagement {
 				AuthorityUtils.createAuthorityList(rolesMapper(res.getRoles()))));
 		res.setPassword("*".repeat(8));
 		return res;
+	}
+
+	@Override
+	public List<AccountResponse> getActivatedAccounts() {
+		List<AccountDoc> listAccountDoc = repository.findByExpirationTimestampGreaterThan(Instant.now().getEpochSecond());
+		List<AccountResponse> listRes = listAccountDoc.stream().map(doc -> accountResponsefromAccountDoc(doc)).collect(Collectors.toList());
+		return listRes;
 	}
 }

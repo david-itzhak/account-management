@@ -1,6 +1,6 @@
 package telran.security.accounting.controllers;
 
-import static telran.security.accounting.api.ApiConstants.USERNAME_PARAM;
+import java.util.List;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotEmpty;
@@ -37,6 +37,11 @@ public class AccountingManagementController {
 		return accountingManagement.getAccount(userName);
 	}
 	
+	@GetMapping(value = ApiConstants.URL_GET_ACTIVATED)
+	List<AccountResponse> getActivatedAccounts() {
+		return accountingManagement.getActivatedAccounts();
+	}
+	
 	@PostMapping(value = ApiConstants.URL_POST)
 	AccountResponse addAccount(@RequestBody @Valid AccountRequest accountDto) {
 		log.debug(">>>> AccountingManagementController > addAccount: resieved REST POST (addAccount) for accountDto: {}", accountDto);
@@ -61,7 +66,7 @@ public class AccountingManagementController {
 	}
 	
 	@DeleteMapping(value = ApiConstants.URL_POST)
-	String removingAccount(@RequestParam(name = USERNAME_PARAM) @NotEmpty String userName) {
+	String removingAccount(@RequestParam(name = ApiConstants.USERNAME_PARAM) @NotEmpty String userName) {
 		accountingManagement.deleteAccount(userName);
 		return userName + " was deleted";
 	}

@@ -24,6 +24,7 @@ import lombok.extern.log4j.Log4j2;
 import telran.security.accounting.AccountingManagementAppl;
 import telran.security.accounting.dto.AccountRequest;
 import telran.security.accounting.dto.AccountResponse;
+import telran.security.accounting.mongo.documents.AccountDoc;
 import telran.security.accounting.mongo.repo.AccountRepository;
 import telran.security.accounting.service.AccountingManagement;
 
@@ -75,24 +76,132 @@ class AccountingManagementApplTests {
 	@Nested
 	@DisplayName("Test for adding account")
 	class AddingAccount{
-		@Test
-		@DisplayName("Test the method in the class AccountingManagementImpl")
-		void saveAndReadAccount() {
-			accountingManagement.addAccount(accountRequest);
-			accountingManagement.getAccount("user1");
+		
+		@Nested
+		class Positive{
+			
+			@Test
+			@DisplayName("Positive test of the method in the class AccountingManagementImpl")
+			void saveAndReadAccount() {
+				accountingManagement.addAccount(accountRequest);
+				accountingManagement.getAccount("user1");
+			}
+			
+			@Test
+			@DisplayName("Positive test of an POST endpoint \"\\accounts\" (addAccount) in class the AccountingManagementController")
+			void addAccount() {
+				log.debug(">>>> AccountingManagementApplTests > addAccount : start test");
+				webTestClient.post()
+						.uri("/accounts")
+						.bodyValue(accountRequest)
+						.exchange()
+						.expectStatus().isOk()
+						.expectBody(AccountResponse.class)
+						.isEqualTo(accountResponse);
+			}
+
+			@Test
+			@DisplayName("Positive test of an POST endpoint \"\\accounts\" (addAccount) in class the AccountingManagementController")
+			void addAccount_withEmptyRoles() {
+				accountRequest.setRoles(new String[]{});
+				accountResponse.setRoles(new String[]{});
+				log.debug(">>>> AccountingManagementApplTests > addAccount : start test");
+				webTestClient.post()
+				.uri("/accounts")
+				.bodyValue(accountRequest)
+				.exchange()
+				.expectStatus().isOk()
+				.expectBody(AccountResponse.class)
+				.isEqualTo(accountResponse);
+			}
 		}
 		
-		@Test
-		@DisplayName("Test an POST endpoint \"\\accounts\" (addAccount) in class the AccountingManagementController")
-		void addAccount() {
-			log.debug(">>>> AccountingManagementApplTests > addAccount : start test");
-			webTestClient.post()
-					.uri("/accounts")
-					.bodyValue(accountRequest)
-					.exchange()
-					.expectStatus().isOk()
-					.expectBody(AccountResponse.class)
-					.isEqualTo(accountResponse);
+		@Nested
+		class Negative{
+			
+			@Test
+			@DisplayName("Negative test of the method in the class AccountingManagementImpl (try to add a user with the same userName)")
+			void AccountingManagementImpl_addAccount_WithSameUsername_ExpectedRuntimeException() {
+				accountingManagement.addAccount(accountRequest);
+				assertThrows(RuntimeException.class, () -> accountingManagement.addAccount(accountRequest));
+			}
+
+			@Test
+			@DisplayName("Negative test of an POST endpoint \"\\accounts\" (addAccount) in class the AccountingManagementController (try to add a user with the same userName)")
+			void AccountingManagementController_addAccount_WithSameUsername_Expecedt500() {
+				accountingManagement.addAccount(accountRequest);
+				webTestClient.post()
+						.uri("/accounts")
+						.bodyValue(accountRequest)
+						.exchange()
+						.expectStatus().is5xxServerError();
+			}
+
+			@Test
+			@DisplayName("Negative test of an POST endpoint \"\\accounts\" (addAccount) in class the AccountingManagementController (try to add a user with not valid pass)")
+			void AccountingManagementController_addAccount_WithNotValidPass_Expecedt400() {
+				accountRequest.setPassword("1111111");
+				webTestClient.post()
+				.uri("/accounts")
+				.bodyValue(accountRequest)
+				.exchange()
+				.expectStatus().isBadRequest();
+			}
+			
+			@Test
+			@DisplayName("Negative test of an POST endpoint \"\\accounts\" (addAccount) in class the AccountingManagementController (try to add a user with empty name)")
+			void AccountingManagementController_addAccount_WithEmptyName_Expecedt400() {
+				accountRequest.setUserName("");
+				webTestClient.post()
+				.uri("/accounts")
+				.bodyValue(accountRequest)
+				.exchange()
+				.expectStatus().isBadRequest();
+			}
+
+			@Test
+			@DisplayName("Negative test of an POST endpoint \"\\accounts\" (addAccount) in class the AccountingManagementController (try to add a user with null name)")
+			void AccountingManagementController_addAccount_WithNullName_Expecedt400() {
+				accountRequest.setUserName(null);
+				webTestClient.post()
+				.uri("/accounts")
+				.bodyValue(accountRequest)
+				.exchange()
+				.expectStatus().isBadRequest();
+			}
+
+			@Test
+			@DisplayName("Negative test of an POST endpoint \"\\accounts\" (addAccount) in class the AccountingManagementController (try to add a user with null roles)")
+			void AccountingManagementController_addAccount_WithNullRoles_Expecedt400() {
+				accountRequest.setRoles(null);
+				webTestClient.post()
+				.uri("/accounts")
+				.bodyValue(accountRequest)
+				.exchange()
+				.expectStatus().isBadRequest();
+			}
+
+			@Test
+			@DisplayName("Negative test of an POST endpoint \"\\accounts\" (addAccount) in class the AccountingManagementController (try to add a user with expiredPeriod 0)")
+			void AccountingManagementController_addAccount_WithexpiredPeriod0_Expecedt400() {
+				accountRequest.setExpiredPeriod(0);
+				webTestClient.post()
+				.uri("/accounts")
+				.bodyValue(accountRequest)
+				.exchange()
+				.expectStatus().isBadRequest();
+			}
+
+			@Test
+			@DisplayName("Negative test of an POST endpoint \"\\accounts\" (addAccount) in class the AccountingManagementController (try to add a user with expiredPeriod negative)")
+			void AccountingManagementController_addAccount_WithexpiredPeriodNegative_Expecedt400() {
+				accountRequest.setExpiredPeriod(-1);
+				webTestClient.post()
+				.uri("/accounts")
+				.bodyValue(accountRequest)
+				.exchange()
+				.expectStatus().isBadRequest();
+			}
 		}
 	}
 	
@@ -152,5 +261,27 @@ class AccountingManagementApplTests {
 		.expectStatus().isOk()
 		.expectBody(AccountResponse.class)
 		.isEqualTo(accountResponsefromAccountRequest(new AccountRequest ("user1", "********", rolesAdmin, nowTimeStamp + 30 * 60 * 60 * 24)));
+	}
+
+	@Test
+	void getActivatedAccounts() {
+		long inPast = Instant.now().getEpochSecond()-10000;
+		long inFuture = Instant.now().getEpochSecond()+10000;
+		List<AccountDoc> accountDocList = new ArrayList<>(Arrays.asList(
+				new AccountDoc ("user1", "00000001", rolesAdmin, inPast, 1616619691), // expired
+				new AccountDoc ("user2", "00000002", rolesUser, inPast, Instant.now().getEpochSecond()-1), // expired
+				new AccountDoc ("user3", "00000003", rolesUser, inPast, inFuture), // active
+				new AccountDoc ("user4", "00000004", rolesUser, inPast, inFuture), // active
+				new AccountDoc ("user5", "00000005", rolesAdminUser, inPast, inFuture))); // active
+		List<AccountResponse> accountResponseList = new ArrayList<>(Arrays.asList(
+				new AccountResponse ("user3", "********", rolesUser, 1716619690),
+				new AccountResponse ("user4", "********", rolesUser, 1716619690),
+				new AccountResponse ("user5", "********", rolesAdminUser, 1716619690)));
+		repository.saveAll(accountDocList);
+		webTestClient.get()
+		.uri("/accounts/activated").exchange()
+		.expectStatus().isOk()
+		.expectBodyList(AccountResponse.class)
+		.isEqualTo(accountResponseList);
 	}
 }

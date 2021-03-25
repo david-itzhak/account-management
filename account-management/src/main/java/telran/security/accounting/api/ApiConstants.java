@@ -2,6 +2,7 @@ package telran.security.accounting.api;
 
 public interface ApiConstants {
 	String URL_GET = "/accounts/{id}";
+	String URL_GET_ACTIVATED = "/accounts/activated";
 	String URL_POST = "/accounts";
 	String URL_UPDATE_PASSWORD = "/accounts/update_password";
 	String URL_NEW_ROLE = "/accounts/new_role";

@@ -13,7 +13,6 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.core.authority.AuthorityUtils;
-import org.springframework.security.core.userdetails.MapReactiveUserDetailsService;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
@@ -22,8 +21,10 @@ import org.springframework.security.web.server.SecurityWebFilterChain;
 
 import lombok.extern.log4j.Log4j2;
 import telran.security.accounting.api.ApiConstants;
+import telran.security.accounting.dto.AccountResponse;
 import telran.security.accounting.mongo.documents.AccountDoc;
 import telran.security.accounting.mongo.repo.AccountRepository;
+import telran.security.accounting.service.AccountingManagementImpl;
 
 @Configuration
 @Log4j2
@@ -32,6 +33,9 @@ public class SecurityConfiguration {
 
 	@Value("${security.enable}")
 	boolean securityEnable;
+	
+	@Value("${test.mod}")
+	boolean testMod;
 
 	@Autowired
 	AccountRepository repository;
@@ -72,21 +76,28 @@ public class SecurityConfiguration {
 //	}
 	@Bean
 	MapReactiveUserDetailsServiceCustom getMapDetailse() {
-		if (!securityEnable) {
+		if (testMod) {
 			log.debug(">>>> SecurityConfiguration: getMapDetailse: start in test mod");
-			UserDetails user = new User("user", "{noop}user", AuthorityUtils.createAuthorityList("ROLE_USER"));
-			UserDetails admin = new User("admin", "{noop}admin", AuthorityUtils.createAuthorityList("ROLE_ADMIN"));
+			UserDetails user = new User("user0", "00000000", AuthorityUtils.createAuthorityList("ROLE_USER"));
+			UserDetails admin = new User("admin1", "11111111", AuthorityUtils.createAuthorityList("ROLE_ADMIN"));
 			UserDetails users[] = { user, admin };
 			return new MapReactiveUserDetailsServiceCustom(users);
 		}
-		List<AccountDoc> list = repository.findAll();
+		log.debug(">>>> SecurityConfiguration: getMapDetailse: start in default mod");
+		log.debug(">>>> SecurityConfiguration > getMapDetailse: start creation of @Bean getMapDetailse");
+		List<AccountDoc> list = repository.findByExpirationTimestampGreaterThan(Instant.now().getEpochSecond());
 		log.debug(">>>> SecurityConfiguration > getMapDetailse: get list of AccountDoc from repo: {}", list);
 		List<UserDetails> listUserDetails = list.stream()
-				.filter(account -> account.getExpirationTimestamp() > Instant.now().getEpochSecond()).map(account -> {
-					return new User(account.getUserName(), account.getPassword(),
-							AuthorityUtils.createAuthorityList(rolesMapper(account.getRoles())));
-				}).collect(Collectors.toList()); // TODO negative test for a case, when expiration timestamp of the
-		// password expired
+				.map(account -> new User(account.getUserName(), account.getPassword(),
+							AuthorityUtils.createAuthorityList(rolesMapper(account.getRoles()))))
+				.collect(Collectors.toList());
+		log.debug(">>>> SecurityConfiguration > getMapDetailse: get list of UserDetails from repo: {}", listUserDetails);
+//		List<AccountResponse> list = accountingManagement.getActivatedAccounts();
+//		log.debug(">>>> SecurityConfiguration > getMapDetailse: get list of AccountDoc from repo: {}", list);
+//		List<UserDetails> listUserDetails = list.stream()
+//				.map(account -> new User(account.getUserName(), account.getPassword(),
+//						AuthorityUtils.createAuthorityList(rolesMapper(account.getRoles()))))
+//				.collect(Collectors.toList()); // TODO negative test for a case, when expiration timestamp of the password is expired
 		return new MapReactiveUserDetailsServiceCustom(listUserDetails);
 	}
 
@@ -100,11 +111,9 @@ public class SecurityConfiguration {
 			return filterChain;
 		}
 		SecurityWebFilterChain filterChain = httpSecurity.csrf().disable().httpBasic().and().authorizeExchange()
-				.pathMatchers(HttpMethod.GET).hasRole(ApiConstants.USER)
-				.pathMatchers(HttpMethod.POST).hasRole(ApiConstants.ADMIN)
-				.pathMatchers(HttpMethod.DELETE).hasRole(ApiConstants.ADMIN)
-				.pathMatchers(HttpMethod.PUT).hasRole(ApiConstants.ADMIN)
-				.and().build();
+				.pathMatchers(HttpMethod.GET).hasRole(ApiConstants.USER).pathMatchers(HttpMethod.POST)
+				.hasRole(ApiConstants.ADMIN).pathMatchers(HttpMethod.DELETE).hasRole(ApiConstants.ADMIN)
+				.pathMatchers(HttpMethod.PUT).hasRole(ApiConstants.ADMIN).and().build();
 		log.debug(">>>> SecurityConfiguration: set security to enable");
 		return filterChain;
 	}
