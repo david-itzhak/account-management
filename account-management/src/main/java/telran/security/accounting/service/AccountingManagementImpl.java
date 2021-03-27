@@ -2,19 +2,19 @@ package telran.security.accounting.service;
 
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import lombok.extern.log4j.Log4j2;
-import telran.security.accounting.MapReactiveUserDetailsServiceCustom;
+import telran.security.accounting.SecurityConfiguration;
 import telran.security.accounting.dto.AccountRequest;
 import telran.security.accounting.dto.AccountResponse;
 import telran.security.accounting.mongo.documents.AccountDoc;
@@ -31,7 +31,7 @@ public class AccountingManagementImpl implements AccountingManagement {
 	PasswordEncoder passwordEncoder;
 	
 	@Autowired
-	MapReactiveUserDetailsServiceCustom detailsService;
+	SecurityConfiguration securityConfiguration;
 
 	private AccountResponse accountResponsefromAccountDoc(AccountDoc accountDoc) {
 		return new AccountResponse(accountDoc.getUserName(), "*".repeat(8), accountDoc.getRoles(),
@@ -76,7 +76,7 @@ public class AccountingManagementImpl implements AccountingManagement {
 		log.debug(
 				">>>> AccountingManagementImpl > addAccount : the account for accountDto {} was added. New AccountDoc: {}",
 				accountDto, res);
-		detailsService.addOrChangeUser(new User(res.getUserName(), res.getPassword(),
+		securityConfiguration.mapUserDetails.putIfAbsent(res.getUserName(), new User(res.getUserName(), res.getPassword(),
 				AuthorityUtils.createAuthorityList(rolesMapper(res.getRoles()))));
 		return accountResponsefromAccountDoc(res);
 	}
@@ -89,7 +89,7 @@ public class AccountingManagementImpl implements AccountingManagement {
 			// TODO negative test
 		}
 		repository.deleteById(username);
-		detailsService.removeUser(username);
+		securityConfiguration.mapUserDetails.remove(username);
 	}
 
 	@Override
@@ -108,8 +108,7 @@ public class AccountingManagementImpl implements AccountingManagement {
 		}
 		log.debug(">>>> AccountingManagementImpl > encodePassword : try to matches new and old passwords");
 		if (passwordEncoder.matches(password, account.getPassword())) {
-			throw new RuntimeException(
-					String.format("Unposible to update password. The new password can not be same as the old"));
+			throw new RuntimeException("Unposible to update password. The new password can not be same as the old");
 			// TODO negative test
 		}
 		log.debug(">>>> AccountingManagementImpl > encodePassword : try to apdate password");
@@ -120,8 +119,7 @@ public class AccountingManagementImpl implements AccountingManagement {
 					.format("Unposible to execute operations. The account with the username %s not found", username));
 			// TODO negative test
 		}
-		detailsService.updatePassword(new User(res.getUserName(), String.format("{noop}%s", res.getPassword()),
-				AuthorityUtils.createAuthorityList(rolesMapper(res.getRoles()))), res.getPassword());
+		securityConfiguration.mapUserDetails.put(res.getUserName(), new User(res.getUserName(), res.getPassword(), AuthorityUtils.createAuthorityList(rolesMapper(res.getRoles()))));
 		res.setPassword("*".repeat(8));
 		return res;
 	}
@@ -134,7 +132,7 @@ public class AccountingManagementImpl implements AccountingManagement {
 					.format("Unposible to execute operations. The account with the username %s not found", username));
 			// TODO negative test
 		}
-		detailsService.addOrChangeUser(new User(res.getUserName(), String.format("{noop}%s", res.getPassword()),
+		securityConfiguration.mapUserDetails.put(res.getUserName(), new User(res.getUserName(), res.getPassword(),
 				AuthorityUtils.createAuthorityList(rolesMapper(res.getRoles()))));
 		res.setPassword("*".repeat(8));
 		return res;
@@ -148,7 +146,7 @@ public class AccountingManagementImpl implements AccountingManagement {
 					.format("Unposible to execute operations. The account with the username %s not found", username));
 			// TODO negative test
 		}
-		detailsService.addOrChangeUser(new User(res.getUserName(), String.format("{noop}%s", res.getPassword()),
+		securityConfiguration.mapUserDetails.put(res.getUserName(), new User(res.getUserName(), res.getPassword(),
 				AuthorityUtils.createAuthorityList(rolesMapper(res.getRoles()))));
 		res.setPassword("*".repeat(8));
 		return res;
@@ -157,7 +155,10 @@ public class AccountingManagementImpl implements AccountingManagement {
 	@Override
 	public List<AccountResponse> getActivatedAccounts() {
 		List<AccountDoc> listAccountDoc = repository.findByExpirationTimestampGreaterThan(Instant.now().getEpochSecond());
-		List<AccountResponse> listRes = listAccountDoc.stream().map(doc -> accountResponsefromAccountDoc(doc)).collect(Collectors.toList());
-		return listRes;
+		return listAccountDoc.isEmpty() ? Collections.emptyList() : listAccountResponsefromListAccountDoc(listAccountDoc);
+	}
+
+	private List<AccountResponse> listAccountResponsefromListAccountDoc(List<AccountDoc> listAccountDoc) {
+		return listAccountDoc.stream().map(this::accountResponsefromAccountDoc).collect(Collectors.toList());
 	}
 }

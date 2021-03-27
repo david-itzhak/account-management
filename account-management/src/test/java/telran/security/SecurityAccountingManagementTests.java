@@ -7,7 +7,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,8 +19,6 @@ import org.springframework.test.web.reactive.server.WebTestClient;
 
 import lombok.extern.log4j.Log4j2;
 import telran.security.accounting.AccountingManagementAppl;
-import telran.security.accounting.dto.AccountRequest;
-import telran.security.accounting.dto.AccountResponse;
 import telran.security.accounting.mongo.documents.AccountDoc;
 import telran.security.accounting.mongo.repo.AccountRepository;
 import telran.security.accounting.service.AccountingManagement;
@@ -29,7 +26,7 @@ import telran.security.accounting.service.AccountingManagement;
 @SpringBootTest(classes = AccountingManagementAppl.class, webEnvironment = WebEnvironment.RANDOM_PORT)
 @AutoConfigureWebTestClient
 @Log4j2
-@TestPropertySource("security_test.properties")
+@TestPropertySource("classpath:security_test.properties")
 public class SecurityAccountingManagementTests {
 	
 	@Autowired
@@ -51,10 +48,6 @@ public class SecurityAccountingManagementTests {
 			new AccountDoc ("user3", "00000003", rolesUser, inPast, inFuture), // active
 			new AccountDoc ("user4", "00000004", rolesUser, inPast, inFuture), // active
 			new AccountDoc ("user5", "00000005", rolesAdminUser, inPast, inFuture))); // active
-	
-	private AccountResponse accountResponsefromAccountRequest (AccountRequest accountRequest) {
-		return new AccountResponse (accountRequest.getUserName(), accountRequest.getPassword(), accountRequest.getRoles(), accountRequest.getExpiredPeriod());
-	}
 	
 	@BeforeEach
 	void cleanDb() {
