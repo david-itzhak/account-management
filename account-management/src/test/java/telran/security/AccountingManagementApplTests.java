@@ -274,9 +274,9 @@ class AccountingManagementApplTests {
 				new AccountDoc ("user4", "00000004", rolesUser, inPast, inFuture), // active
 				new AccountDoc ("user5", "00000005", rolesAdminUser, inPast, inFuture))); // active
 		List<AccountResponse> accountResponseList = new ArrayList<>(Arrays.asList(
-				new AccountResponse ("user3", "********", rolesUser, 1716619690),
-				new AccountResponse ("user4", "********", rolesUser, 1716619690),
-				new AccountResponse ("user5", "********", rolesAdminUser, 1716619690)));
+				new AccountResponse ("user3", "********", rolesUser, inFuture),
+				new AccountResponse ("user4", "********", rolesUser, inFuture),
+				new AccountResponse ("user5", "********", rolesAdminUser, inFuture)));
 		repository.saveAll(accountDocList);
 		webTestClient.get()
 		.uri("/accounts/activated").exchange()
